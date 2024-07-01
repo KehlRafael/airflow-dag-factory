@@ -1,0 +1,6 @@
+{
+    "sql_file": "sales_weekly_report.sql",
+    "source": "CRM",
+    "email": "sales@company.com",
+    "schedule": "0 18 * * 1"
+}

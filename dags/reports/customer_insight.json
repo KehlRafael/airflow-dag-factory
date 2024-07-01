@@ -1,0 +1,6 @@
+{
+    "sql_file": "customer_insights.sql",
+    "source": "CRM",
+    "email": "marketing@company.com",
+    "schedule": "0 16 * * 1-5"
+}

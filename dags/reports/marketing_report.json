@@ -1,0 +1,6 @@
+{
+    "sql_file": "marketing_report.sql",
+    "source": "CRM",
+    "email": "marketing@company.com",
+    "schedule": "0 10 * * 1-5"
+}

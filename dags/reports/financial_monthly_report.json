@@ -1,0 +1,6 @@
+{
+    "sql_file": "financial_monthly_report.sql",
+    "source": "Warehouse",
+    "email": "finance@company.com",
+    "schedule": "0 9 1 * *"
+}

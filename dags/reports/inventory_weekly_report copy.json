@@ -1,0 +1,6 @@
+{
+    "sql_file": "inventory_monthly_report.sql",
+    "source": "ERP",
+    "email": "inventory@company.com",
+    "schedule": "0 15 1 * *"
+}
