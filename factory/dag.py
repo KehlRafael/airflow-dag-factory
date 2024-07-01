@@ -47,7 +47,7 @@ class DAGFactory(ABC):
     We define here the basic structure for a DAG Factory that can be extended by its subclasses.
     """
 
-    def __init__(self, dag_name:str, dag_args:dict = {}) -> None:
+    def __init__(self, dag_name:str = "", dag_args:dict = {}) -> None:
         """
         Initialize all default parameters for a DAG.
 
@@ -59,16 +59,6 @@ class DAGFactory(ABC):
         self.dag_name = dag_name
         self.dag_args = dag_args
         self.operators = {}
-        default_args = {
-            'owner': 'DAG Dev Team',
-            'start_date': datetime(2024, 1, 1, tzinfo=pendulum.timezone('America/Sao_Paulo'))
-        }
-        if dag_args.get('default_args'):
-            default_args.update(dag_args.get('default_args'))
-        self.dag_args['default_args'] = default_args
-        self.dag_args['catchup'] = dag_args.get('catchup', False)
-        self.dag_args['tags'] = dag_args.get('tags', []) + ['Factory']
-        self.dag_args['render_template_as_native_obj'] = dag_args.get('render_template_as_native_obj', True)
     
     @property
     def dag_name(self) -> str:
@@ -84,6 +74,16 @@ class DAGFactory(ABC):
     
     @dag_args.setter
     def dag_args(self, value:str) -> None:
+        default_args = {
+            'owner': 'DAG Dev Team',
+            'start_date': datetime(2024, 1, 1, tzinfo=pendulum.timezone('America/Sao_Paulo'))
+        }
+        if value.get('default_args'):
+            default_args.update(value.get('default_args'))
+        value['default_args'] = default_args
+        value['catchup'] = value.get('catchup', False)
+        value['tags'] = value.get('tags', []) + ['Factory']
+        value['render_template_as_native_obj'] = value.get('render_template_as_native_obj', True)
         self._dag_args = value
 
 
@@ -109,6 +109,8 @@ class DAGFactory(ABC):
 
         :rtype: DAG
         """
+        if not self.dag_name:
+            raise ValueError("DAG name is required.")
         dag = DAG(self.dag_name, **self.dag_args)
         dag = self.add_tasks(dag, task_list)
         return dag
@@ -119,7 +121,7 @@ class PythonDAGFactory(DAGFactory):
     This simple factory creates the DAG with the default parameters.
     """
 
-    def __init__(self, dag_name:str, dag_args:dict = {}) -> None:
+    def __init__(self, dag_name:str = "", dag_args:dict = {}) -> None:
         """
         Initialize all default parameters for a DAG.
 
@@ -149,7 +151,7 @@ class PythonDAGFactory(DAGFactory):
 
         # Create all tasks and creates a list of all parents of tasks
         for task in task_list:
-            dependencies[task['task_id']] = task.pop('dependencies')
+            dependencies[task['task_id']] = task.pop('dependencies', [])
             # Associate task to DAG
             task['dag'] = dag
             tasks[task['task_id']] = self.operators['Python'](**task)
@@ -172,8 +174,12 @@ class GeneralDAGFactory(DAGFactory):
     @DAGFactory.dag_args.setter
     def dag_args(self, value:str) -> None:
         if value.get("params"):
-            value = self.add_dag_params(value)
-        self._dag_args = value
+            params = value.pop("params", {})
+            dag_params = {}
+            for param in params.keys():
+                dag_params[param] = Param(**params[param])
+            value["params"] = dag_params
+        DAGFactory.dag_args.fset(self, value)
     
     @staticmethod
     def add_default_task_parameters(task:dict) -> dict:
@@ -206,22 +212,6 @@ class GeneralDAGFactory(DAGFactory):
         if not operator_path:
             raise ValueError(f"Operator {operator} is not supported!")
         return getattr(import_module(operator_path['path']), operator_path['class'])
-    
-    def add_dag_params(self, dag_args:dict) -> dict:
-        """
-        Adds Param to your DAG. You input a `dag_args` dictionary from where the Params will be popped.
-        a Param object will be created for each Param and added to the DAG. 
-
-        :param dict dag_args: a dictionary with all DAG arguments, like catchup or schedule_interval.
-
-        :rtype: dict
-        """
-        params = dag_args.pop("params", {})
-        dag_params = {}
-        for param in params.keys():
-            dag_params[param] = Param(**params[param])
-        dag_args["params"] = dag_params
-        return dag_args
 
     def add_tasks(self, dag:DAG, task_list:list[dict]) -> DAG:
         """
@@ -256,7 +246,7 @@ class GeneralDAGFactory(DAGFactory):
 
         # Create all tasks and creates a list of all parents of tasks
         for task in task_list:
-            dependencies[task['task_id']] = task.pop('dependencies')
+            dependencies[task['task_id']] = task.pop('dependencies', [])
             # Import operator if needed
             operator = task.pop('operator')
             if operator not in self.operators.keys():
