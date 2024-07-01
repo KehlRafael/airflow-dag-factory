@@ -7,6 +7,7 @@ import pendulum
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.param import Param
 
 logger = logging.getLogger('dag.factory')
 
@@ -83,7 +84,7 @@ class DAGFactory(ABC):
     
     @dag_args.setter
     def dag_args(self, value:str) -> None:
-        self._dag_name = value
+        self._dag_args = value
 
 
     @abstractmethod
@@ -119,6 +120,14 @@ class PythonDAGFactory(DAGFactory):
     """
 
     def __init__(self, dag_name:str, dag_args:dict = {}) -> None:
+        """
+        Initialize all default parameters for a DAG.
+
+        :param str dag_name: the DAG unique name to be shown on Airflow.
+        :param dict dag_args: a dictionary with all DAG arguments, like catchup or schedule_interval.
+
+        :rtype: None
+        """
         super().__init__(dag_name, dag_args)
         operator_path = MAPPED_OPERATORS.get('Python')
         self.operators['Python'] = getattr(import_module(operator_path['path']), operator_path['class'])
@@ -159,9 +168,15 @@ class GeneralDAGFactory(DAGFactory):
     Factory that creates a DAG object using default values defined by the team's practices.
     This is a general factory that just adds the default parameters and creates the DAG as requested.
     """
+
+    @DAGFactory.dag_args.setter
+    def dag_args(self, value:str) -> None:
+        if value.get("params"):
+            value = self.add_dag_params(value)
+        self._dag_args = value
     
     @staticmethod
-    def add_default_task_parameters(task:dict = {}):
+    def add_default_task_parameters(task:dict) -> dict:
         """
         Adds the default parameters to a task dictionary for simple DAGs.
         Specifically, we add a failure callback, a timeout of 12 hours and the logger name.
@@ -169,7 +184,7 @@ class GeneralDAGFactory(DAGFactory):
         :param dict task: a task dictionary. It contains their `operator` key,
             its parameters and a `dependencies` key with a list of the task upstream dependencies.
 
-        :rtype: DAG
+        :rtype: dict
         """
         if not task.get('on_failure_callback'):
             task['on_failure_callback'] = failure_callback
@@ -191,6 +206,22 @@ class GeneralDAGFactory(DAGFactory):
         if not operator_path:
             raise ValueError(f"Operator {operator} is not supported!")
         return getattr(import_module(operator_path['path']), operator_path['class'])
+    
+    def add_dag_params(self, dag_args:dict) -> dict:
+        """
+        Adds Param to your DAG. You input a `dag_args` dictionary from where the Params will be popped.
+        a Param object will be created for each Param and added to the DAG. 
+
+        :param dict dag_args: a dictionary with all DAG arguments, like catchup or schedule_interval.
+
+        :rtype: dict
+        """
+        params = dag_args.pop("params", {})
+        dag_params = {}
+        for param in params.keys():
+            dag_params[param] = Param(**params[param])
+        dag_args["params"] = dag_params
+        return dag_args
 
     def add_tasks(self, dag:DAG, task_list:list[dict]) -> DAG:
         """
