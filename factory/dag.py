@@ -16,17 +16,21 @@ MAPPED_OPERATORS = {
         "path": "airflow.operators.python",
         "class": "PythonOperator",
     },
+    "BranchPython": {
+        "path": "airflow.operators.python",
+        "class": "BranchPythonOperator",
+    },
     "Empty": {
         "path": "airflow.operators.empty",
-        "class": "EmptyOperator"
+        "class": "EmptyOperator",
     },
     "Dummy": { # Deprecated, replaced by Empty
         "path": "airflow.operators.empty",
-        "class": "EmptyOperator"
+        "class": "EmptyOperator",
     },
     "TaskGroup": {
         "path": "airflow.utils.task_group",
-        "class": "TaskGroup"
+        "class": "TaskGroup",
     }
 }
 
@@ -192,11 +196,13 @@ class GeneralDAGFactory(DAGFactory):
 
         :rtype: dict
         """
+        if 'group_id' in task.keys():
+            # We have no defaults for groups
+            return task
         if not task.get('on_failure_callback'):
             task['on_failure_callback'] = failure_callback
-        if not task.get('on_failure_callback'):
+        if not task.get('execution_timeout'):
             task['execution_timeout'] = timedelta(hours=12)
-        task['logger_name'] = 'airflow.simple_dag_factory.task'
         return task
 
     @staticmethod
@@ -225,6 +231,7 @@ class GeneralDAGFactory(DAGFactory):
         :rtype: DAG
         """
         parents = []
+        groups = []
         dependencies = {}
         tasks = {}
         
@@ -246,7 +253,12 @@ class GeneralDAGFactory(DAGFactory):
 
         # Create all tasks and creates a list of all parents of tasks
         for task in task_list:
-            dependencies[task['task_id']] = task.pop('dependencies', [])
+            if 'task_id' in task.keys():
+                id_type = 'task_id' 
+            elif 'group_id' in task.keys():
+                id_type = 'group_id'
+                groups.append(task[id_type])
+            dependencies[task[id_type]] = task.pop('dependencies', [])
             # Import operator if needed
             operator = task.pop('operator')
             if operator not in self.operators.keys():
@@ -254,17 +266,35 @@ class GeneralDAGFactory(DAGFactory):
             # Associate task to DAG
             task['dag'] = dag
             task = self.add_default_task_parameters(task)
-            tasks[task['task_id']] = self.operators[operator](**task)
-            for parent in dependencies[task['task_id']]:
+            if task.get('task_group'):
+                task['task_group'] = tasks[task['task_group']]
+            elif task.get('parent_group'):
+                task['parent_group'] = tasks[task['parent_group']]
+            tasks[task[id_type]] = self.operators[operator](**task)
+            print(task, tasks[task[id_type]].task_group)
+            for parent in dependencies[task[id_type]]:
                 parents.append(parent)
 
         # Set up upstream dependencies
         for task in tasks.keys():
-            if not dependencies[task] and not task['task_group']:
+            print(task, tasks[task].task_group.group_id)
+            if task in groups:
+                continue
+            if not dependencies[task] and tasks[task].task_group.group_id is None:
                 begin >> tasks[task]
             else:
                 for dep in dependencies[task]:
                     tasks[dep] >> tasks[task]
-            if task not in parents and not task['task_group']:
+            if task not in parents and tasks[task].task_group.group_id is None:
                 tasks[task] >> end
+        # Due to an odd bug, groups dependencies must be set last
+        for group in groups:
+            print(group, tasks[group].task_group.group_id)
+            if not dependencies[group] and tasks[group].task_group.group_id is None:
+                begin >> tasks[group]
+            else:
+                for dep in dependencies[group]:
+                    tasks[dep] >> tasks[group]
+            if group not in parents and tasks[group].task_group.group_id is None:
+                tasks[group] >> end
         return dag
