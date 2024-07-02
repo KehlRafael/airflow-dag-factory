@@ -27,7 +27,7 @@ def check_remote(**kwargs) -> str:
         logger.info("No new data in the remote repository!")
         return "no_data"
     logger.info("New data found! Starting extraction.")
-    return "new_data"
+    return "new_data.extract_data"
 
 
 def extract_from_remote(**kwargs) -> int:

@@ -16,7 +16,7 @@ def check_remote(**kwargs) -> str:
         logger.info("No new data in the remote repository!")
         return "no_data"
     logger.info("New data found! Starting extraction.")
-    return "new_data"
+    return "new_data.extract_data"
 
 
 def extract_from_remote(**kwargs) -> int:
@@ -67,7 +67,7 @@ tasks = [
         "python_callable": load_data_to_warehouse,
         "task_group": "new_data",
         "op_kwargs": {
-            "files_found": "{{ extract_data.output }}"
+            "files_found": "{{ ti.xcom_pull(task_ids='new_data.extract_data' , key='return_value') }}"
         },
         "operator": "Python",
         "dependencies": ["extract_data"]
