@@ -39,5 +39,5 @@ for report in reports:
         "dependencies": []
     }]
     dag_factory.dag_name = report["name"]
-    dag_factory.dag_args = {"schedule": report["schedule"]}
+    dag_factory.dag_args = {"schedule": report["schedule"], "tags": ["report"]}
     globals()[report["name"]] = dag_factory.get_airflow_dag(task)
