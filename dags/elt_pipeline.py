@@ -20,6 +20,7 @@ dag_args = {
     "catchup": False,
 }
 
+
 def check_remote(**kwargs) -> str:
     """Simulates a function that checks a remote file system for new files"""
     from random import random

@@ -6,6 +6,7 @@ from factory.dag import PythonDAGFactory
 
 logger = logging.getLogger()
 
+
 def get_report_config(path:str) -> list[dict]:
     """Gets the content of all json files from a path as dict"""
     json_files = [config for config in os.listdir(path) if config.endswith('.json')]
@@ -17,11 +18,13 @@ def get_report_config(path:str) -> list[dict]:
             report_configs.append(config)
     return report_configs
 
+
 def generate_report(sql_file:str = "", source:str = "", email:str = "") -> None:
     """Generates and send a report based on a config file"""
     logger.info(f"Connecting to source: {source}")
     logger.info(f"Exporting result from {sql_file} to remote file system.")
     logger.info(f"Report sent to {email}!")
+
 
 # Folder as found in the container
 reports = get_report_config("/opt/airflow/dags/reports/")

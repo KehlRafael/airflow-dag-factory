@@ -9,6 +9,7 @@ dag_args = {
     "schedule": "*/1 * * * *" # Every minute
 }
 
+
 def check_remote(**kwargs) -> str:
     """Simulates a function that checks a remote file system for new files"""
     from random import random
@@ -41,6 +42,7 @@ def run_data_transformation(**kwargs) -> None:
     logger.info("Remember: Airflow is an orchestrator! Transformations are not done by the worker.")
     logger.info("Also notice that files went from a remote file system to a data lake. Nothing in the workers disk or memory!")
     logger.info("Transformations done by the Data Warehouse!")
+
 
 tasks = [
     {

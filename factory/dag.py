@@ -77,7 +77,7 @@ class DAGFactory(ABC):
         return self._dag_args
     
     @dag_args.setter
-    def dag_args(self, value:str) -> None:
+    def dag_args(self, value:dict) -> None:
         default_args = {
             'owner': 'DAG Dev Team',
             'start_date': datetime(2024, 1, 1, tzinfo=pendulum.timezone('America/Sao_Paulo'))
@@ -118,6 +118,7 @@ class DAGFactory(ABC):
         dag = DAG(self.dag_name, **self.dag_args)
         dag = self.add_tasks(dag, task_list)
         return dag
+
 
 class PythonDAGFactory(DAGFactory):
     """
@@ -168,6 +169,7 @@ class PythonDAGFactory(DAGFactory):
                 for dep in dependencies[task]:
                     tasks[dep] >> tasks[task]
         return dag
+
 
 class GeneralDAGFactory(DAGFactory):
     """
